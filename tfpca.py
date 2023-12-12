@@ -135,8 +135,10 @@ class PCA_Abstract(tf.keras.Model):
         # Svd
         singular_values, u, v = self.svd(X)
 
-        explained_variance = (singular_values**2) / (X.shape[0] - 1)
-        total_var = tf.reduce_sum(explained_variance)
+        n = X.shape[0] - 1
+        explained_variance = (singular_values**2) / n        
+        
+        total_var = tf.reduce_sum(tf.reduce_sum(tf.square(X), axis=0)/n)
         explained_variance_ratio = explained_variance / total_var
         explained_variance = explained_variance[...,:self.n_components]
         explained_variance_ratio = explained_variance_ratio[...,:self.n_components]
