@@ -4,6 +4,7 @@ import tensorflow as tf
 import numpy as np
 from tqdm import tqdm
 
+
 class rSVD():
     def __init__(self,r, q, p, perm, dist):
         self.r = r # target rank
@@ -16,18 +17,21 @@ class rSVD():
         m = X.shape[-1]
         # Random projection
         if len(self.perm) == 3:
-            Z = tf.squeeze(self.distribution((X.shape[0], m, self.r + self.p)))
+            P = tf.squeeze(self.distribution((X.shape[0], m, self.r + self.p)))
         else:
-            Z = tf.squeeze(self.distribution((m, self.r + self.p)))
-            
+            P = tf.squeeze(self.distribution((m, self.r + self.p)))
+
+        Z = tf.matmul(X, P)
         for _ in range(self.q):
             if self.q <= 1:
-                Z = tf.matmul(tf.transpose(X, perm=self.perm), tf.matmul(X, Z))
+                Z = tf.matmul(tf.transpose(X, perm=self.perm), Z)
+                Z = tf.matmul(X, Z)
             else:
-                Z, _ = tf.linalg.qr(tf.matmul(X, Z), full_matrices=False)
-                Z, _ = tf.linalg.qr(tf.matmul(tf.transpose(X, perm=self.perm), Z), full_matrices=False)
-    
-        Q, _ = tf.linalg.qr(tf.matmul(X, Z), full_matrices=False) # Q- orthonormal basis for Z (and also X)
+                Q, _ = tf.linalg.qr(Z, full_matrices=False)
+                Q, _ = tf.linalg.qr(tf.matmul(tf.transpose(X, perm=self.perm), Q), full_matrices=False)
+                Z = tf.matmul(X, Q)
+        
+        Q, _ = tf.linalg.qr(Z, full_matrices=False) # Q- orthonormal basis for Z (and also X)
         # Project X into Q
         Y = tf.matmul(tf.transpose(Q, perm=self.perm), X)
         
@@ -40,7 +44,6 @@ class rSVD():
 class SVD():
     def call(self,X):
         return tf.linalg.svd(X)
-
 class TruncatedSVD(tf.keras.Model):
     def __init__(self, n_components, data_dim):
         super().__init__()
@@ -115,7 +118,8 @@ class PCA_Abstract(tf.keras.Model):
     
     def reconstruct(self, X, n_comp=None):
         return self.decode(self.encode(X, n_comp), X.shape, n_comp)
-        
+    
+    
     def fit(self, X):
         if self.incremental:
             return self.incremental_fit(X)
@@ -168,6 +172,7 @@ class PCA_Abstract(tf.keras.Model):
 
         updated_mean = mean * n_samples_seen
         updated_mean += (data_mean)*n_samples
+        
         updated_mean /= (n_samples_seen + n_samples)
 
         updated_var = (n_samples_seen/(n_samples_seen+n_samples))*(var + mean**2) + (n_samples/(n_samples_seen+n_samples))*(data_var + data_mean**2) - updated_mean**2
@@ -184,7 +189,7 @@ class PCA_Abstract(tf.keras.Model):
             
         n_samples_seen += n_samples
         singular_values, _, v = self.svd(X)
-        
+
         explained_variance = singular_values**2 / (n_samples_seen - 1)
         explained_variance_ratio = singular_values**2 / np.sum(updated_var * n_samples_seen)
 
@@ -235,9 +240,9 @@ class PCA(PCA_Abstract):
         return n_samples_seen    
 
 class multichannel_PCA(PCA_Abstract):
-    def __init__(self, n_components, data_dim, channels, incremental, **rSvdkwargs):        
+    def __init__(self, n_components, data_dim, incremental, **rSvdkwargs):
         super().__init__(n_components, data_dim, [0,2,1], incremental, rSvdkwargs)
-        self.channels = channels
+        self.channels = 3
         self.mean = self.add_weight(name='mean', shape=(self.channels, 1, self.features), initializer=tf.zeros_initializer())
         self.components = self.add_weight(name='components', shape=(self.channels, self.features,self.n_components), initializer=tf.zeros_initializer())
         self.singular_values = self.add_weight(name='singular_values', shape=(self.channels, self.n_components), initializer=tf.zeros_initializer())
@@ -246,24 +251,24 @@ class multichannel_PCA(PCA_Abstract):
         self.explained_variance_ratio = self.add_weight(name='explained variance ratio', shape=(self.channels, self.n_components), initializer=tf.zeros_initializer())
     
     def encode(self, data, n_comp=None):
-        data = tf.einsum("ndhwc->cndhw", data)
+        data = tf.einsum("n...c->cn...", data)
         return super()._encode(data, n_comp, (data.shape[0], data.shape[1], -1))
         
     def decode(self, X, shape, n_comp=None):
         X = super()._decode(X, n_comp)
-        X = tf.einsum('cdf->dfc', X)
+        X = tf.einsum('c...->...c', X)
         return tf.reshape(X, shape)
     
     def data_fit(self, data):
-        data = tf.einsum("ndhwc->cndhw", data)
+        data = tf.einsum("n...c->cn...", data)
         M, V,SV, VAR, EV, EVR = self._fit(data, (data.shape[0], data.shape[1], -1), axis=1)        
         self.set_weights([M, V,SV, VAR, EV, EVR])
         
 
     def train_step(self, data, n_samples_seen):
-        data = tf.einsum("ndhwc->cndhw", data)
+        data = tf.einsum("n...c->cn...", data)
         
-        n_samples_seen, M, V, SV, VAR, EV, EVR = super()._incremental_step(data,
+        n_samples_seen, M, V,SV, VAR, EV, EVR = super()._incremental_step(data,
                                                                     self.mean,
                                                                     self.var,
                                                                     self.components,
