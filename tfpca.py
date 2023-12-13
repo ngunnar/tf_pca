@@ -240,9 +240,9 @@ class PCA(PCA_Abstract):
         return n_samples_seen    
 
 class multichannel_PCA(PCA_Abstract):
-    def __init__(self, n_components, data_dim, incremental, **rSvdkwargs):
+    def __init__(self, n_components, data_dim, channels, incremental, **rSvdkwargs):
         super().__init__(n_components, data_dim, [0,2,1], incremental, rSvdkwargs)
-        self.channels = 3
+        self.channels = channels
         self.mean = self.add_weight(name='mean', shape=(self.channels, 1, self.features), initializer=tf.zeros_initializer())
         self.components = self.add_weight(name='components', shape=(self.channels, self.features,self.n_components), initializer=tf.zeros_initializer())
         self.singular_values = self.add_weight(name='singular_values', shape=(self.channels, self.n_components), initializer=tf.zeros_initializer())
