@@ -1,8 +1,8 @@
 # tf_pca
-PCA implementation in TensorFlow with support of Increamental PCA[[1]](#1). and Randomized SVD[[2]](#2).
+PCA implementation in TensorFlow with support of Increamental PCA[[1]](#1) and Randomized SVD[[2]](#2).
 
 ## Example on TF Flowers dataset 
-Data : https://www.tensorflow.org/datasets/catalog/tf_flowers
+Data: https://www.tensorflow.org/datasets/catalog/tf_flowers
 
 ```python
 from tfpca import PCA
@@ -65,7 +65,8 @@ plt.show()
 
 ## References
 <a id="1">[1]</a> 
-Halko, Nathan, Per-Gunnar Martinsson, and Joel A. Tropp. "Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions." SIAM review 53.2 (2011): 217-288.
+Ross, David A., et al. "Incremental learning for robust visual tracking." International journal of computer vision 77 (2008): 125-141.
 
 <a id="2">[2]</a> 
-Ross, David A., et al. "Incremental learning for robust visual tracking." International journal of computer vision 77 (2008): 125-141.
+Halko, Nathan, Per-Gunnar Martinsson, and Joel A. Tropp. "Finding structure with randomness: Probabilistic algorithms for constructing approximate matrix decompositions." SIAM review 53.2 (2011): 217-288.
+
